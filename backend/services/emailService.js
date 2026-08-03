@@ -1,41 +1,31 @@
-import nodemailer from "nodemailer";
+import { Resend } from "resend";
 
-let transporter = null;
-
-function getTransporter() {
-  if (transporter) return transporter;
-
-  const { SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS } = process.env;
-  if (!SMTP_HOST || !SMTP_USER || !SMTP_PASS) {
+let resend = null;
+function getResend() {
+  if (resend) return resend;
+  const { RESEND_API_KEY } = process.env;
+  if (!RESEND_API_KEY) {
     console.warn(
-      "SMTP env vars are not fully set — emails will be logged to the console instead of sent."
+      "RESEND_API_KEY is not set — emails will be logged to the console instead of sent."
     );
     return null;
   }
-
-  transporter = nodemailer.createTransport({
-    host: SMTP_HOST,
-    port: Number(SMTP_PORT) || 587,
-    secure: Number(SMTP_PORT) === 465,
-    auth: { user: SMTP_USER, pass: SMTP_PASS },
-    family: 4,
-  });
-  return transporter;
+  resend = new Resend(RESEND_API_KEY);
+  return resend;
 }
-
 async function send({ to, subject, html }) {
-  const from = process.env.EMAIL_FROM || "Mockroom <no-reply@mockroom.app>";
-  const t = getTransporter();
-
-  if (!t) {
-    // Dev fallback so the flow keeps working without real SMTP creds configured.
-    console.log(`\n--- [DEV EMAIL] to:${to} subject:"${subject}" ---\n${html}\n---\n`);
+  const from = process.env.EMAIL_FROM || "Mockroom <onboarding@resend.dev>";
+  const r = getResend();
+  if (!r) {
+    console.log(`\n--- [DEV EMAIL] to:${to} subject:"${subject}"---\n${html}\n---\n`);
     return;
   }
-
-  await t.sendMail({ from, to, subject, html });
+  const { error } = await r.emails.send({ from, to, subject, html });
+  if (error) {
+    console.error("Resend email error:", error);
+    throw new Error("Failed to send email: " + error.message);
+  }
 }
-
 function wrapTemplate(bodyHtml) {
   return `
   <div style="font-family: -apple-system, Segoe UI, Roboto, sans-serif; max-width: 480px; margin: 0 auto; padding: 32px 24px; color: #171a1f;">
@@ -43,12 +33,11 @@ function wrapTemplate(bodyHtml) {
       Mockroom
     </div>
     ${bodyHtml}
-    <div style="margin-top: 32px; padding-top: 16px; border-top: 1px solid #e6e6e6; font-size: 12px; color: #8a8f98;">
+    <div style="margin-top: 32px; padding-top: 16px; border-top:1px solid #e6e6e6; font-size: 12px; color: #8a8f98;">
       You're receiving this because you have a Mockroom account.
     </div>
   </div>`;
 }
-
 export async function sendOtpEmail(to, code) {
   const html = wrapTemplate(`
     <p style="font-size: 15px; line-height: 1.6;">Your sign-in code is:</p>
@@ -59,12 +48,10 @@ export async function sendOtpEmail(to, code) {
   `);
   await send({ to, subject: `${code} is your Mockroom sign-in code`, html });
 }
-
 export async function sendReportEmail(to, interview) {
   const { report, role, difficulty } = interview;
   const strengthsHtml = (report.strengths || []).map((s) => `<li>${s}</li>`).join("");
   const weaknessesHtml = (report.weaknesses || []).map((w) => `<li>${w}</li>`).join("");
-
   const html = wrapTemplate(`
     <p style="font-size: 15px;">Your <strong>${role}</strong> mock interview (${difficulty}) is complete.</p>
     <div style="font-size: 40px; font-weight: 700; color: #0e9488; margin: 8px 0;">${report.overallScore}<span style="font-size:16px;color:#8a8f98;">/10</span></div>
@@ -83,6 +70,5 @@ export async function sendReportEmail(to, interview) {
     </table>
     <p style="font-size: 13px; color: #6b7280; margin-top: 20px;">Log back in to Mockroom to see the full question-by-question breakdown.</p>
   `);
-
   await send({ to, subject: `Your ${role} interview report — ${report.overallScore}/10`, html });
 }

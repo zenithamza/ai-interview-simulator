@@ -20,7 +20,8 @@
     "mongoose": "^8.5.0",
     "multer": "^2.2.0",
     "nodemailer": "^9.0.3",
-    "pdf-parse": "^2.4.5"
+    "pdf-parse": "^2.4.5",
+    "resend": "^6.18.1"
   },
   "devDependencies": {
     "nodemon": "^3.1.4"
