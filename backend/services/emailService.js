@@ -1,8 +1,8 @@
-import { TransactionalEmailsApi, TransactionalEmailsApiApiKeys } from "@getbrevo/brevo";
+import { BrevoClient } from "@getbrevo/brevo";
 
-let apiInstance = null;
+let brevo = null;
 function getBrevo() {
-  if (apiInstance) return apiInstance;
+  if (brevo) return brevo;
   const { BREVO_API_KEY } = process.env;
   if (!BREVO_API_KEY) {
     console.warn(
@@ -10,29 +10,28 @@ function getBrevo() {
     );
     return null;
   }
-  apiInstance = new TransactionalEmailsApi();
-  apiInstance.setApiKey(TransactionalEmailsApiApiKeys.apiKey, BREVO_API_KEY);
-  return apiInstance;
+  brevo = new BrevoClient({ apiKey: BREVO_API_KEY });
+  return brevo;
 }
 
 async function send({ to, subject, html }) {
   const fromEmail = process.env.EMAIL_FROM_ADDRESS;
   const fromName = process.env.EMAIL_FROM_NAME || "Mockroom";
-  const api = getBrevo();
-  if (!api) {
+  const client = getBrevo();
+  if (!client) {
     console.log(`\n--- [DEV EMAIL] to:${to} subject:"${subject}"---\n${html}\n---\n`);
     return;
   }
   try {
-    await api.sendTransacEmail({
+    await client.transactionalEmails.sendTransacEmail({
       sender: { email: fromEmail, name: fromName },
       to: [{ email: to }],
       subject,
       htmlContent: html,
     });
   } catch (err) {
-    console.error("Brevo email error:", err?.response?.body || err.message);
-    throw new Error("Failed to send email: " + (err?.response?.body?.message || err.message));
+    console.error("Brevo email error:", err?.rawResponse?.body || err.message);
+    throw new Error("Failed to send email: " + err.message);
   }
 }
 
