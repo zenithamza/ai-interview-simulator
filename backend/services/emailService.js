@@ -1,4 +1,4 @@
-import SibApiV3Sdk from "@getbrevo/brevo";
+import { TransactionalEmailsApi, TransactionalEmailsApiApiKeys } from "@getbrevo/brevo";
 
 let apiInstance = null;
 function getBrevo() {
@@ -10,8 +10,8 @@ function getBrevo() {
     );
     return null;
   }
-  apiInstance = new SibApiV3Sdk.TransactionalEmailsApi();
-  apiInstance.setApiKey(SibApiV3Sdk.TransactionalEmailsApiApiKeys.apiKey, BREVO_API_KEY);
+  apiInstance = new TransactionalEmailsApi();
+  apiInstance.setApiKey(TransactionalEmailsApiApiKeys.apiKey, BREVO_API_KEY);
   return apiInstance;
 }
 
