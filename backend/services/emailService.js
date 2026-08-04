@@ -1,31 +1,41 @@
-import { Resend } from "resend";
+import SibApiV3Sdk from "@getbrevo/brevo";
 
-let resend = null;
-function getResend() {
-  if (resend) return resend;
-  const { RESEND_API_KEY } = process.env;
-  if (!RESEND_API_KEY) {
+let apiInstance = null;
+function getBrevo() {
+  if (apiInstance) return apiInstance;
+  const { BREVO_API_KEY } = process.env;
+  if (!BREVO_API_KEY) {
     console.warn(
-      "RESEND_API_KEY is not set — emails will be logged to the console instead of sent."
+      "BREVO_API_KEY is not set — emails will be logged to the console instead of sent."
     );
     return null;
   }
-  resend = new Resend(RESEND_API_KEY);
-  return resend;
+  apiInstance = new SibApiV3Sdk.TransactionalEmailsApi();
+  apiInstance.setApiKey(SibApiV3Sdk.TransactionalEmailsApiApiKeys.apiKey, BREVO_API_KEY);
+  return apiInstance;
 }
+
 async function send({ to, subject, html }) {
-  const from = process.env.EMAIL_FROM || "Mockroom <onboarding@resend.dev>";
-  const r = getResend();
-  if (!r) {
+  const fromEmail = process.env.EMAIL_FROM_ADDRESS;
+  const fromName = process.env.EMAIL_FROM_NAME || "Mockroom";
+  const api = getBrevo();
+  if (!api) {
     console.log(`\n--- [DEV EMAIL] to:${to} subject:"${subject}"---\n${html}\n---\n`);
     return;
   }
-  const { error } = await r.emails.send({ from, to, subject, html });
-  if (error) {
-    console.error("Resend email error:", error);
-    throw new Error("Failed to send email: " + error.message);
+  try {
+    await api.sendTransacEmail({
+      sender: { email: fromEmail, name: fromName },
+      to: [{ email: to }],
+      subject,
+      htmlContent: html,
+    });
+  } catch (err) {
+    console.error("Brevo email error:", err?.response?.body || err.message);
+    throw new Error("Failed to send email: " + (err?.response?.body?.message || err.message));
   }
 }
+
 function wrapTemplate(bodyHtml) {
   return `
   <div style="font-family: -apple-system, Segoe UI, Roboto, sans-serif; max-width: 480px; margin: 0 auto; padding: 32px 24px; color: #171a1f;">
@@ -38,6 +48,7 @@ function wrapTemplate(bodyHtml) {
     </div>
   </div>`;
 }
+
 export async function sendOtpEmail(to, code) {
   const html = wrapTemplate(`
     <p style="font-size: 15px; line-height: 1.6;">Your sign-in code is:</p>
@@ -48,6 +59,7 @@ export async function sendOtpEmail(to, code) {
   `);
   await send({ to, subject: `${code} is your Mockroom sign-in code`, html });
 }
+
 export async function sendReportEmail(to, interview) {
   const { report, role, difficulty } = interview;
   const strengthsHtml = (report.strengths || []).map((s) => `<li>${s}</li>`).join("");
