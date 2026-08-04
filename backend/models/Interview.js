@@ -68,7 +68,7 @@ const interviewSchema = new mongoose.Schema(
 
     // Public sharing
     isPublic: { type: Boolean, default: false },
-    shareId: { type: String, default: null, index: true, unique: true, sparse: true },
+    shareId: { type: String, index: true, unique: true, sparse: true },
   },
   { timestamps: true }
 );
